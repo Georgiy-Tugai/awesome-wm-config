@@ -73,6 +73,8 @@ customization.default.property = {
     minimal_client_width = 50,
     minimal_client_height = 50,
 }
+local awesome_tag_restore_props = {"mwfact", "nmaster", "ncol"}
+local awesome_tag_restore_prop_sep = "\t"
 
 customization.default.compmgr = 'xcompmgr'
 customization.default.compmgr_args = '-f -c -s'
@@ -145,7 +147,15 @@ do
             if f then
                 local tags = awful.tag.gettags(s)
                 for _, tag in ipairs(tags) do
-                    f:write(tag.name .. "\n")
+                    local t = awful.tag.getdata(tag)
+                    local function prop(p)
+                        return t[p] or customization.default.property[p]
+                    end
+                    f:write(tag.name .. awesome_tag_restore_prop_sep .. prop("layout").name)
+                    for k,v in ipairs(awesome_tag_restore_props) do
+                        f:write(awesome_tag_restore_prop_sep .. tostring(prop(v)))
+                    end
+                    f:write("\n")
                 end
                 f:close()
             end
@@ -1821,6 +1831,35 @@ end
 util.taglist.set_taglist(customization.widgets.taglist)
 -- }}}
 
+--- http://lua-users.org/wiki/SplitJoin
+
+function string:split( inSplitPattern, outResults )
+    if not outResults then
+        outResults = { }
+    end
+    local theStart = 1
+    local theSplitStart, theSplitEnd = string.find( self, inSplitPattern, theStart )
+    while theSplitStart do
+        table.insert( outResults, string.sub( self, theStart, theSplitStart-1 ) )
+        theStart = theSplitEnd + 1
+        theSplitStart, theSplitEnd = string.find( self, inSplitPattern, theStart )
+    end
+    table.insert( outResults, string.sub( self, theStart ) )
+    return outResults
+end
+
+function name2layout(name)
+    if not name then
+        return nil
+    end
+    for k,v in pairs(awful.layout.layouts) do
+        if v.name == name then
+            return v
+        end
+    end
+    return nil
+end
+
 do
     -- test whether screen 1 tag file exists
     local f = io.open(awesome_tags_fname .. ".0", "r")
@@ -1843,15 +1882,31 @@ do
             for s = 1, old_scr_count do
                 local count_index = math.min(s, scr_count)
                 local fname = awesome_tags_fname .. "." .. s
-                for tagname in io.lines(fname) do
-                    local tag = awful.tag.add(tagname,
-                    {
-                        screen = count_index,
-                        layout = customization.default.property.layout,
+                for line in io.lines(fname) do
+                    bits = line:split(awesome_tag_restore_prop_sep)
+                    -- tagname,layout,[awesome_tag_restore_props]
+                    props = {
                         mwfact = customization.default.property.mwfact,
                         nmaster = customization.default.property.nmaster,
-                        ncol = customization.default.property.ncol,
+                        ncol = customization.default.property.ncol
                     }
+                    for k,v in ipairs(bits) do
+                        if k > 2 then
+                            local prop = awesome_tag_restore_props[k - 2]
+                            if prop and v ~= "" and v ~= "nil" then
+                                if type(props[prop]) == "number" then
+                                    props[prop] = tonumber(v)
+                                else
+                                    props[prop] = v
+                                end
+                            end
+                        end
+                    end
+                    local tag = awful.tag.add(bits[1],
+                    awful.util.table.join({
+                        screen = count_index,
+                        layout = name2layout(bits[2]) or customization.default.property.layout,
+                    }, props)
                     )
                     awful.tag.move(count[count_index], tag)
 
