@@ -126,9 +126,15 @@ end
 
 local cachedir = awful.util.getdir("cache")
 local awesome_tags_fname = cachedir .. "/awesome-tags"
-local awesome_autostart_once_fname = cachedir .. "/awesome-autostart-once-" .. os.getenv("XDG_SESSION_ID")
-local awesome_client_tags_fname = cachedir .. "/awesome-client-tags-" .. os.getenv("XDG_SESSION_ID")
-
+local xdg_session_id = os.getenv("XDG_SESSION_ID")
+if not xdg_session_id then
+    naughty.notify({preset = naughty.config.presets.normal,
+                    title = "No session ID found",
+                    text = "Can't find an XDG_SESSION_ID, using 'nil'"})
+    xdg_session_id = "nil"
+end
+local awesome_autostart_once_fname = cachedir .. "/awesome-autostart-once-" .. xdg_session_id
+local awesome_client_tags_fname = cachedir .. "/awesome-client-tags-" .. xdg_session_id
 do
 
     awesome.connect_signal("exit", function (restart)
