@@ -1858,7 +1858,7 @@ function name2layout(name)
     if not name then
         return nil
     end
-    for k,v in pairs(awful.layout.layouts) do
+    for k,v in pairs(awful.layout.layouts or layouts) do
         if v.name == name then
             return v
         end
